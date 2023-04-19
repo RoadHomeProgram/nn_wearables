@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import re
+import json
+
 
 def identify_patients(file="/Users/ryanschubert/Dropbox (Rush)/Ryan's stuff/wearables/patient_mapping.csv"):
     data = pd.read_csv(file)
@@ -41,15 +43,23 @@ def mapMoodToPPG(prefix,moodSurveys):
     return targetSurveys
 
 #get mood data
-def readMood():
-    return
+def readMood(mood):
+    tmp=open(mood)
+    data = json.load(tmp)
+    return data
 
-def identifyBounds():
 
-    return
+#so for each mood survey can we extract the ppg signal that corresponds to the time t preceding the survey
+#lets have t default to 1 hour for testing purposes 
+def extractPrecedingWindow(mood,ppg,t=3600):
+    moodTS=datetime.strptime(mood['date'],'%m/%d/%Y %H:%M:%S %Z')
+    bound=moodTS - timedelta(seconds=t)
+    ppgSubset=ppg.loc[(ppg['ts'] < moodTS) & (ppg['ts'] > bound)]
+    return ppgSubset
+#problem with the above is that it seems like the given mood survey doesn't have signal in the hour preceding its timestamp
+#I'd like to visualize the ppg and mood data real quick to get a sense of how accurate/serious this problem is
+
 #remove sleep data
-
-
 
 #window generation
 
