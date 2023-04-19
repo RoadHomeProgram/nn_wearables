@@ -35,8 +35,10 @@ def readPPG(path):
     data['ts']=[datetime.utcfromtimestamp(date) for date in data['ts']]
     return data
 
-def mapMoodToPPG():
-    return
+def mapMoodToPPG(prefix,moodSurveys):
+    cleanRegex=re.sub('\\)','\\)',re.sub('\\(','\\(',re.sub(' ' ,'\\ ',prefix)))
+    targetSurveys=[f for f in moodSurveys if re.search('(' + cleanRegex +')',f)]
+    return targetSurveys
 
 #get mood data
 def readMood():
