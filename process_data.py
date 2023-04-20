@@ -18,7 +18,7 @@ def identify_source_files(path="/Users/ryanschubert/Dropbox (Rush)/TREAT Lab/Wea
     prefixes=[]
     for i  in enumerate(folders):
         files = os.listdir(path + i[1])
-        files = [f for f in files if re.search('ppg.csv',f) or re.search('json',f)]
+        files = [f for f in files if re.search('ppg.csv',f) or re.search('Rush-Mood-Survey.json',f)]
         files = [re.sub('\\.([a-zA-Z_-])+\\.([a-z])+$','',x) for x in files]
         files = [f for f in files if re.sub('([a-zA-Z_0-9]+)(\\.)([0-9T])+','\\1',f) in valid_patients]
         files = set(files)
@@ -56,8 +56,16 @@ def extractPrecedingWindow(mood,ppg,t=3600):
     bound=moodTS - timedelta(seconds=t)
     ppgSubset=ppg.loc[(ppg['ts'] < moodTS) & (ppg['ts'] > bound)]
     return ppgSubset
-#problem with the above is that it seems like the given mood survey doesn't have signal in the hour preceding its timestamp
-#I'd like to visualize the ppg and mood data real quick to get a sense of how accurate/serious this problem is
+
+def extractNTimeSteps(ppg,n=1000):
+    window=ppg.sort_values(by='ts', ascending=False)[slice(n)].drop(['ts','ir','red'],axis=1)
+    return window
+
+def reformatData(input,n=1000):
+    input=[i for i in input if i[0].shape[0] > n]
+    data=np.array(list(map(lambda a: extractNTimeSteps(a[0],n),input)),dtype=object)
+    labels=np.array(list(map(lambda a: a[1]['Anxious'],input)),dtype=np.int)
+    return (data, labels)
 
 #remove sleep data
 
@@ -67,6 +75,16 @@ def extractPrecedingWindow(mood,ppg,t=3600):
 
 #take a random
 
-def wearables_dataset():
-
-    return [(train_data, train_labels),(test_data,test_labels)]
+def wearables_dataset(n=1000,t=3600):
+    measurements, surveys = identify_source_files()
+    chunks=[]
+    for i in range(0,len(measurements)):
+        measureData=readPPG(measurements[i] + '.ppg.csv')
+        moodTargets=mapMoodToPPG(measurements[i],surveys)
+        for j in range(0,len(moodTargets)):
+            surveyResults=readMood(moodTargets[j] + '.Rush-Mood-Survey.json')
+            windowedData=extractPrecedingWindow(surveyResults,measureData,t=t)
+            if windowedData.shape[0] !=0:
+                chunks.append((windowedData,surveyResults))
+    data,labels = reformatData(chunks,n=n)
+    return data, labels
