@@ -16,6 +16,7 @@ import numpy as np
 ##import data
 X, Y = ppd.wearables_dataset()
 X = np.asarray(X).astype(np.float32)
+X = nan_to_num(X)
 # class myCallback(keras.callback.Callback):
 #     def on_epoch_end(self,epoch,logs={}):
 #         if(logs.get('loss')<0.1):
@@ -34,7 +35,7 @@ def define_model():
             tf.keras.layers.Conv1D(16, kernel_size=9, activation='relu'),#need to decide how many filters and define the input shape
             tf.keras.layers.MaxPool1D(pool_size=4),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(10,activation='relu'),
+            tf.keras.layers.Dense(50,activation='relu'),
             tf.keras.layers.Dense(11,activation='softmax'),
         ])
 
@@ -48,5 +49,5 @@ def define_model():
 model = define_model()
 
 # train model
-history = model.fit(X, Y, epochs=10)
+history = model.fit(X, Y, epochs=10,batch_size=10)
 
