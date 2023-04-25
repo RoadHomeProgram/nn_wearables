@@ -65,7 +65,8 @@ def reformatData(input,n=1000):
     input=[i for i in input if i[0].shape[0] > n]
     data=np.array(list(map(lambda a: extractNTimeSteps(a[0],n),input)),dtype=object)
     labels=np.array(list(map(lambda a: a[1]['Anxious'],input)),dtype=np.int)
-    return (data, labels)
+    ids=list(map(lambda a: a[1]['user_id'],input))
+    return (data, labels,ids)
 
 #remove sleep data
 
@@ -86,5 +87,6 @@ def wearables_dataset(n=1000,t=3600):
             windowedData=extractPrecedingWindow(surveyResults,measureData,t=t)
             if windowedData.shape[0] !=0:
                 chunks.append((windowedData,surveyResults))
-    data,labels = reformatData(chunks,n=n)
-    return data, labels
+    data,labels, ids = reformatData(chunks,n=n)
+    return data, labels, ids
+
