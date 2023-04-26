@@ -3,7 +3,8 @@ os.chdir('/Users/ryanschubert/Documents/wearables/nn_wearables/')
 import tensorflow as tf
 import process_data as ppd
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from tensorflow_addons.metrics import RSquare
 from sklearn.preprocessing import StandardScaler
 
 n_steps=1000
@@ -19,18 +20,18 @@ def define_model():
             tf.keras.layers.MaxPool1D(pool_size=4),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(50,activation='relu'),
-            tf.keras.layers.Dense(11,activation='softmax'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(1,activation='relu'),
         ])
 
     model.compile(optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy'])
+                    loss='mean_squared_error',
+                    metrics=[RSquare()])
     return(model)
 
 # callbacks = myCallback()
 
 scaler = StandardScaler()
-
 
 # train model
 
@@ -46,7 +47,6 @@ for i in uniqueIds:
     print(i)
     indices=[j for j in range(len(ids)) if ids[j] == i]
     train_X=np.delete(X,indices,axis=0)
-    train_X=np.delete(X,indices,axis=0)
     train_X= scaler.fit_transform(train_X.reshape(-1, train_X.shape[-1])).reshape(train_X.shape)
     train_Y=np.delete(Y,indices)
     test_X=X[indices,]
@@ -55,14 +55,15 @@ for i in uniqueIds:
     model = define_model()
     history = model.fit(train_X, train_Y, validation_data=(test_X,test_Y),epochs=50,batch_size=10)
     
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
-    plt.title('model accuracy')
-    plt.ylabel('accuracy')
+    plt.plot(history.history['r_square'])
+    plt.plot(history.history['val_r_square'])
+    plt.title('model r_square')
+    plt.ylabel('r_square')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
     
-    
-np.argmax(model.predict(test_X),axis=1)
+tmp=model.predict(test_X)
 test_Y
+
+    
