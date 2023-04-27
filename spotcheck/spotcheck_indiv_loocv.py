@@ -1,15 +1,18 @@
-#here the question is how long of a window should we select
-#I started with 1000 ts, but how much time does that potentially cover?
+#W8mmLTzDR0sK6ZocflG4KA has a particularly good fit in this model
+#want to make sure this is not an artifact so will do k fold crossvalidation on their data alone to estimate the fit of the neural net
 import os 
 os.chdir('/Users/ryanschubert/Documents/wearables/nn_wearables/')
 import tensorflow as tf
 import process_data as ppd
 import numpy as np
 import matplotlib.pyplot as plt
+from tensorflow_addons.metrics import RSquare
 from sklearn.preprocessing import StandardScaler
+from random import choices
+import pickle
 
 n_steps=10000
-n_features=2
+n_features=4
 ##define neural net
 #lets start with a simple version
 #need to define the input shapes, which will depend on the actual data
@@ -26,47 +29,58 @@ def define_model():
             tf.keras.layers.Dropout(0.2),
             tf.keras.layers.Dense(50,activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(11,activation='softmax'),
+            tf.keras.layers.Dense(1,activation='relu'),
         ])
 
     model.compile(optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy'])
+                    loss='mean_squared_error',
+                    metrics=[RSquare()])
     return(model)
-
-
 
 scaler = StandardScaler()
 
-# train model
-
-
-#hmm we need some code to handle the train test split
 X, Y, ids = ppd.wearables_dataset(n=n_steps)
 X = np.asarray(X).astype(np.float32)
-X = np.nan_to_num(X)
+Y = np.asarray(Y).astype(np.float32)
+indices=[j for j in range(len(ids)) if ids[j] != 'Bcw9ieaoXiFLhRZGX2O7Xw']
+X=np.delete(X,indices,axis=0)
+Y=np.delete(Y,indices)
 
-uniqueIds=set(ids)
 
-for i in uniqueIds:
-    print(i)
-    indices=[j for j in range(len(ids)) if ids[j] != i]
-    train_X=np.delete(X,indices,axis=0)
-    train_X= scaler.fit_transform(train_X.reshape(-1, train_X.shape[-1])).reshape(train_X.shape)
-    train_Y=np.delete(Y,indices)
-    test_X=X[indices,]
-    test_X = scaler.transform(test_X.reshape(-1, test_X.shape[-1])).reshape(test_X.shape)
-    test_Y=Y[indices,]
+val_r2_hist=[]
+val_loss_hist=[]
+for i in range(1,len(Y)):
+    X_holdin=np.delete(X,i,axis=0)
+    X_holdin=scaler.fit_transform(X_holdin.reshape(-1, X_holdin.shape[-1])).reshape(X_holdin.shape)
+    X_holdin=np.nan_to_num(X_holdin)
+    Y_holdin=np.delete(Y,i)
+
+    X_holdout=X[i,]
+    X_holdout=X_holdout[np.newaxis,:,:]
+    X_holdout=scaler.fit_transform(X_holdout.reshape(-1, X_holdout.shape[-1])).reshape(X_holdout.shape)
+    X_holdout=np.nan_to_num(X_holdout)
+    Y_holdout=np.asarray(Y[i,]).reshape((1,))
     model = define_model()
-    history = model.fit(train_X, train_Y, validation_data=(test_X,test_Y),epochs=50,batch_size=10)
+    history = model.fit(X_holdin,Y_holdin,validation_data=(X_holdout,Y_holdout),epochs=50,batch_size=5)
     
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
-    plt.title('model accuracy ' + i)
-    plt.ylabel('accuracy')
+    plt.plot(history.history['r_square'])
+    plt.plot(history.history['val_r_square'])
+    plt.title('model r_square ' + str(i))
+    plt.ylabel('r_square')
     plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
+    plt.legend(['train N=' +str(Y_holdin.shape[0]), 'test N=' +str(Y_holdout.shape[0])], loc='upper left')
     plt.show()
     
-tmp=model.predict(test_X)
-test_Y
+    val_r2_hist.append(history.history['val_r_square'][-1])
+    val_loss_hist.append(history.history['val_loss'][-1])
+    
+
+with open("/Users/ryanschubert/Dropbox (Rush)/Ryan's stuff/wearables/spotcheck_W8mmLTzDR0sK6ZocflG4KA.pkl", 'wb') as outp:
+    pickle.dump((val_loss_hist,Y[1:36]), outp, pickle.HIGHEST_PROTOCOL)
+
+
+a, b = np.polyfit(Y[1:36],val_loss_hist, 1)
+plt.scatter(Y[1:36],val_loss_hist)
+plt.plot(Y[1:36], a*Y[1:36]+b)
+plt.show()
+    

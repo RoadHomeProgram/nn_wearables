@@ -1,15 +1,17 @@
-#here the question is how long of a window should we select
-#I started with 1000 ts, but how much time does that potentially cover?
+#W8mmLTzDR0sK6ZocflG4KA has a particularly good fit in this model
+#want to make sure this is not an artifact so will do k fold crossvalidation on their data alone to estimate the fit of the neural net
 import os 
 os.chdir('/Users/ryanschubert/Documents/wearables/nn_wearables/')
 import tensorflow as tf
 import process_data as ppd
 import numpy as np
 import matplotlib.pyplot as plt
+from tensorflow_addons.metrics import RSquare
 from sklearn.preprocessing import StandardScaler
+from random import sample
 
 n_steps=10000
-n_features=2
+n_features=4
 ##define neural net
 #lets start with a simple version
 #need to define the input shapes, which will depend on the actual data
@@ -26,47 +28,24 @@ def define_model():
             tf.keras.layers.Dropout(0.2),
             tf.keras.layers.Dense(50,activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(11,activation='softmax'),
+            tf.keras.layers.Dense(1,activation='relu'),
         ])
 
     model.compile(optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy'])
+                    loss='mean_squared_error',
+                    metrics=[RSquare()])
     return(model)
-
-
 
 scaler = StandardScaler()
 
-# train model
-
-
-#hmm we need some code to handle the train test split
 X, Y, ids = ppd.wearables_dataset(n=n_steps)
 X = np.asarray(X).astype(np.float32)
-X = np.nan_to_num(X)
+indices=[j for j in range(len(ids)) if ids[j] != 'W8mmLTzDR0sK6ZocflG4KA']
+X=np.delete(X,indices,axis=0)
+Y=np.delete(Y,indices)
 
-uniqueIds=set(ids)
+fold_ids=sample((1,2,3,4),Y.shape[0])
 
-for i in uniqueIds:
-    print(i)
-    indices=[j for j in range(len(ids)) if ids[j] != i]
-    train_X=np.delete(X,indices,axis=0)
-    train_X= scaler.fit_transform(train_X.reshape(-1, train_X.shape[-1])).reshape(train_X.shape)
-    train_Y=np.delete(Y,indices)
-    test_X=X[indices,]
-    test_X = scaler.transform(test_X.reshape(-1, test_X.shape[-1])).reshape(test_X.shape)
-    test_Y=Y[indices,]
-    model = define_model()
-    history = model.fit(train_X, train_Y, validation_data=(test_X,test_Y),epochs=50,batch_size=10)
-    
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
-    plt.title('model accuracy ' + i)
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    
-tmp=model.predict(test_X)
-test_Y
+
+model = define_model()
+history = model.fit(indiv_X, indiv_Y,epochs=200,batch_size=5,validation_split=0.3)

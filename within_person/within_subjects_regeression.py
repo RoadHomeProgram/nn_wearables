@@ -42,7 +42,7 @@ uniqueIds=set(ids)
 
 for i in uniqueIds:
     print(i)
-    indices=[j for j in range(len(ids)) if ids[j] == i]
+    indices=[j for j in range(len(ids)) if ids[j] != i]
     indiv_X=np.delete(X,indices,axis=0)
     indiv_X= scaler.fit_transform(indiv_X.reshape(-1, indiv_X.shape[-1])).reshape(indiv_X.shape)
     indiv_Y=np.delete(Y,indices)
